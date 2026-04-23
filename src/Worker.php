@@ -11,7 +11,6 @@ use Illuminate\Contracts\Container\Container;
 use Illuminate\Queue\QueueManager;
 use Illuminate\Queue\Worker as IlluminateWorker;
 use Illuminate\Queue\WorkerOptions;
-use Symfony\Component\Debug\Exception\FatalThrowableError;
 use Throwable;
 
 class Worker extends IlluminateWorker
@@ -65,7 +64,7 @@ class Worker extends IlluminateWorker
         } catch (Exception $e) {
             $exception = new QueueSetupException("Error in queue setup while getting next job", 0, $e);
         } catch (Throwable $e) {
-            $exception = new QueueSetupException("Error in queue setup while getting next job", 0, new FatalThrowableError($e));
+            $exception = new QueueSetupException("Error in queue setup while getting next job", 0, $e);
         }
 
         if ($exception) {
@@ -110,7 +109,9 @@ class Worker extends IlluminateWorker
         foreach ($this->managerRegistry->getManagers() as $entityManager) {
             $connection = $entityManager->getConnection();
 
-            if ($connection->ping() === false) {
+            try {
+                $connection->executeQuery($connection->getDatabasePlatform()->getDummySelectSQL());
+            } catch (Throwable) {
                 $connection->close();
                 $connection->connect();
             }
